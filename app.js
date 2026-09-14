@@ -211,6 +211,8 @@ function openScan({ withPhoto = true } = {}) {
   f.querySelectorAll(".filled").forEach((i) => i.classList.remove("filled"));
   ui.pendingPhoto = null;
   $("#scanFrame").textContent = "写真なし";
+  $("#scanRaw").value = "";
+  $("#scanRawBox").hidden = true;
   fillTargets(ui.selected);
   if (ui.selected && company(ui.selected)) $("#s_company").value = company(ui.selected).name;
   setScanStatus(Store.canReadImages ? "名刺の写真を選ぶと、会社名・氏名などを自動で読み取ります。" : "自動読み取りはこの環境では使えません。名刺を見ながら入力してください。", Store.canReadImages ? "" : "warn");
@@ -230,10 +232,12 @@ async function onPhoto(file) {
 
   ui.scanCtl?.abort();
   const ctl = (ui.scanCtl = new AbortController());
-  setScanStatus("名刺を読み取っています…（10〜30秒ほど。待つ間に入力を始めても大丈夫です）", "busy");
+  setScanStatus("名刺の文字を読み取っています…（初回は読み取り用データの準備に30秒ほどかかります。待つ間に入力を始めても大丈夫です）", "busy");
   try {
     const r = await readCard(blob, ctl.signal);
     if (ctl.signal.aborted) return;
+    $("#scanRaw").value = r.raw || "";
+    $("#scanRawBox").hidden = !r.raw;
     let n = 0;
     CARD_FIELDS.forEach((k) => {
       const inp = $("#s_" + k);
@@ -241,7 +245,7 @@ async function onPhoto(file) {
     });
     const hit = matchCompany($("#s_company").value);
     if (hit) $("#s_target").value = hit.id;
-    setScanStatus(n ? `${n}項目を読み取りました。色のついた欄を名刺と見比べて、違っていれば直してください。${hit ? `「${hit.name}」の名刺として登録します。` : ""}` : "文字を読み取れませんでした。撮り直すか、手で入力してください。", n ? "" : "warn");
+    setScanStatus(n ? `${n}項目を自動で入れました。色のついた欄を名刺と見比べて直し、空いている項目は手で入力してください。${hit ? `「${hit.name}」の名刺として登録します。` : ""}` : "文字を読み取れませんでした。撮り直すか、手で入力してください。", n ? "" : "warn");
   } catch (e) {
     const t = sampleErrorText(e);
     if (t) setScanStatus(t, "err");

@@ -278,6 +278,10 @@ body.locked .bar,body.locked .wrap,body.locked .fab{visibility:hidden}
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn small" id="scanRetake">写真を選び直す</button>
         </div>
+        <details id="scanRawBox" hidden>
+          <summary style="cursor:pointer;font-size:13px">読み取った文字をすべて見る</summary>
+          <textarea id="scanRaw" readonly aria-label="読み取った文字" style="width:100%;min-height:120px;margin-top:6px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);padding:8px;font-family:var(--f-mono);font-size:12px"></textarea>
+        </details>
       </div>
     </div>
     <div class="grid2">
@@ -378,6 +382,7 @@ body.locked .bar,body.locked .wrap,body.locked .fab{visibility:hidden}
 </section>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"></script>
 <script src="config.js"></script>
 <script src="core.js"></script>
 <script src="app.js"></script>

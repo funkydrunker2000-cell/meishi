@@ -54,7 +54,7 @@ function fromRow(row) {
 const COLS = ["companies", "contacts", "visits"];
 const Store = {
   mode: "loading", // "setup"（接続先が未設定）| "ready"
-  canReadImages: !!sb,
+  canReadImages: !!window.Tesseract,
   assets: !!sb,
   profile: { displayName: prefs.get("me") }, // 記入者名はこの端末に保存
   data: { companies: [], contacts: [], visits: [] },
@@ -199,46 +199,129 @@ async function shrinkImage(file, max = 1600) {
   } catch { return file; }
 }
 
-/* ── 名刺の読み取り（Supabase Edge Function「read-card」経由で Claude API） ── */
+/* ── 名刺の読み取り（ブラウザ内の無料文字認識 Tesseract.js。写真は外部に送らない） ── */
 const CARD_FIELDS = ["company", "department", "title", "name", "kana", "phone", "mobile", "email", "fax", "address", "url"];
 
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result).replace(/^data:[^,]*,/, ""));
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(blob);
-  });
+let ocrWorkerPromise = null;
+function getOcrWorker() {
+  // 読み取り用データ（日本語＋英語）の準備は初回だけ。以後は同じワーカーを使い回す
+  if (!ocrWorkerPromise) {
+    ocrWorkerPromise = window.Tesseract.createWorker("jpn+eng", 1).catch((e) => { ocrWorkerPromise = null; throw e; });
+  }
+  return ocrWorkerPromise;
 }
 
 async function readCard(blob, signal) {
-  const image = await blobToBase64(blob);
+  if (!window.Tesseract) throw { code: "unavailable" };
+  let worker;
+  try { worker = await getOcrWorker(); } catch { throw { code: "load_failed" }; }
   if (signal?.aborted) throw { code: "cancelled" };
-  const { data, error } = await sb.functions.invoke("read-card", {
-    body: { image, mediaType: blob.type === "image/png" ? "image/png" : "image/jpeg" },
-  });
+  let text = "";
+  try { ({ data: { text } } = await worker.recognize(blob)); } catch { throw { code: "image_rejected" }; }
   if (signal?.aborted) throw { code: "cancelled" };
-  if (error) {
-    let code = "upstream_error";
-    try { const body = await error.context.json(); code = body.error || (error.context.status === 401 ? "jwt_rejected" : code); }
-    catch { if (error.context?.status === 401) code = "jwt_rejected"; }
-    throw { code };
-  }
+  return parseCardText(text);
+}
+
+const CORP_RE = /(株式会社|有限会社|合同会社|合資会社|合名会社|一般社団法人|公益社団法人|一般財団法人|公益財団法人|医療法人|社会福祉法人|学校法人|NPO法人|\(株\)|\(有\)|㈱|㈲|Co\.,?\s?Ltd|Inc\.|Corporation|K\.K\.)/i;
+const TITLE_SRC = "代表取締役|取締役|執行役員|副社長|社長|会長|専務|常務|本部長|事業部長|部長|次長|課長代理|課長|係長|主任|主査|室長|所長|支店長|営業所長|店長|工場長|センター長|マネージャー|マネジャー|リーダー|チーフ|CEO|COO|CFO|CTO|Manager|Director|President";
+const DEPT_RE = /(部|課|室|係|グループ|チーム|センター|事業所|支店|営業所|本部|工場|Division|Dept)/;
+const PREF_RE = /(北海道|東京都|京都府|大阪府|[^\s\d]{2,3}県)/;
+const PHONE_RE = /(?:\+81[\s-]?)?\(?0\d{1,4}\)?[\s\-.]?\d{1,4}[\s\-.]?\d{3,4}/g;
+
+/* 読み取った文字を、名刺の各項目に振り分ける（氏名・部署・役職は推測） */
+function parseCardText(rawText) {
   const res = {};
-  CARD_FIELDS.forEach((k) => { res[k] = data && typeof data[k] === "string" ? data[k].trim() : ""; });
+  CARD_FIELDS.forEach((k) => (res[k] = ""));
+  const lines = String(rawText || "").normalize("NFKC").split(/\r?\n/)
+    // 日本語の文字の間に入りがちな空白を詰める
+    .map((l) => l.replace(/([^\x00-\x7F])\s+(?=[^\x00-\x7F])/g, "$1").replace(/\s{2,}/g, " ").trim())
+    .filter((l) => l.length > 1);
+  res.raw = lines.join("\n");
+  const used = new Set();
+
+  lines.forEach((l, i) => {
+    const flat = l.replace(/\s/g, "");
+    // メール
+    const mail = flat.match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/);
+    if (mail && !res.email) { res.email = mail[0]; used.add(i); return; }
+    // URL
+    const url = flat.match(/(https?:\/\/)?(www\.)?[\w-]+(\.[\w-]+)+(\/[\w\-./?%&=]*)?/i);
+    if (url && /https?:|www\.|\.(jp|com|net|org|biz|info|co)\b/i.test(url[0]) && !res.url) { res.url = url[0]; used.add(i); return; }
+    // 電話・携帯・FAX（1行に複数あっても、直前のラベルで判定）
+    let last = 0, hit = false;
+    for (const m of l.matchAll(PHONE_RE)) {
+      const digits = m[0].replace(/\D/g, "");
+      if (digits.length < 10 || digits.length > 12) continue;
+      const label = l.slice(last, m.index);
+      last = m.index + m[0].length;
+      const local = digits.startsWith("81") ? "0" + digits.slice(2) : digits;
+      const kind = /fax|ファ[クッ]ス|(^|\s)F[\s.:：]/i.test(label) ? "fax"
+        : /携帯|mobile|cell|(^|\s)M[\s.:：]/i.test(label) || /^0[789]0/.test(local) ? "mobile" : "phone";
+      if (!res[kind]) res[kind] = m[0].trim();
+      hit = true;
+    }
+    if (hit) used.add(i);
+  });
+
+  // 住所（〒 か都道府県を含む行。郵便番号だけの行や、番地・ビル名の続きの行は結合）
+  for (let i = 0; i < lines.length && !res.address; i++) {
+    if (used.has(i) || !(/〒/.test(lines[i]) || PREF_RE.test(lines[i]))) continue;
+    let addr = lines[i];
+    used.add(i);
+    for (let j = i + 1; j < lines.length && j <= i + 2; j++) {
+      const next = lines[j];
+      if (used.has(j) || CORP_RE.test(next)) break;
+      const zipOnly = /^〒?\s?\d{3}-?\d{4}$/.test(addr);
+      if (!zipOnly && !/(ビル|階|号|丁目|番地|\d-\d|F)$/.test(next)) break;
+      addr += " " + next;
+      used.add(j);
+    }
+    res.address = addr.replace(/^(住所|所在地|address)[:：\s]*/i, "").trim();
+  }
+
+  // 会社名
+  lines.forEach((l, i) => { if (!res.company && !used.has(i) && CORP_RE.test(l)) { res.company = l; used.add(i); } });
+
+  // 役職・部署
+  lines.forEach((l, i) => {
+    if (used.has(i) || l.length > 30) return;
+    const titles = [...l.matchAll(new RegExp(TITLE_SRC, "gi"))];
+    if (titles.length && !res.title) {
+      const first = titles[0], lastT = titles[titles.length - 1];
+      res.title = l.slice(first.index, lastT.index + lastT[0].length).trim();
+      const rest = (l.slice(0, first.index) + " " + l.slice(lastT.index + lastT[0].length)).trim();
+      if (rest && DEPT_RE.test(rest) && !res.department) res.department = rest;
+      used.add(i);
+    } else if (!res.department && DEPT_RE.test(l) && !/\d/.test(l)) {
+      res.department = l;
+      used.add(i);
+    }
+  });
+
+  // ふりがな（ひらがな・カタカナだけの行）
+  lines.forEach((l, i) => {
+    if (!res.kana && !used.has(i) && /^[ぁ-んァ-ヶー\s]{2,20}$/.test(l)) {
+      res.kana = l.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+      used.add(i);
+    }
+  });
+
+  // 氏名（残った行のうち、漢字を含む短い行。無ければローマ字の2語）
+  const nameIdx = lines.findIndex((l, i) => !used.has(i) && /^[一-龠々ぁ-んァ-ヶー\s]{2,8}$/.test(l) && /[一-龠々]/.test(l));
+  if (nameIdx >= 0) { res.name = lines[nameIdx]; used.add(nameIdx); }
+  else {
+    const romaji = lines.find((l, i) => !used.has(i) && /^[A-Z][a-zA-Z]+\s[A-Z][a-zA-Z]+$/.test(l));
+    if (romaji) res.name = romaji;
+  }
   return res;
 }
 
 function sampleErrorText(e) {
   switch (e && e.code) {
     case "cancelled": return "";
-    case "not_configured": return "読み取り機能の設定（APIキー）がまだ済んでいません。管理者に連絡し、今回は名刺を見ながら手で入力してください。";
-    case "jwt_rejected": return "読み取り機能に接続できませんでした。管理者に、関数の「Verify JWT」がオフになっているか確認してもらってください。今回は手で入力してください。";
-    case "forbidden_origin": return "このページからは読み取り機能を使えない設定になっています。管理者に連絡し、今回は手で入力してください。";
-    case "image_rejected": return "この写真は読み取れませんでした。明るい場所で名刺全体を撮り直してください。";
-    case "rate_limited": return "読み取りが混み合っています。1分ほど待って撮り直すか、手で入力してください。";
-    case "refused": case "invalid_output": return "文字をうまく読み取れませんでした。撮り直すか、手で入力してください。";
-    default: return "読み取り中に通信エラーが起きました。撮り直すか、手で入力してください。";
+    case "unavailable": case "load_failed": return "文字読み取りの準備ができませんでした。電波の良い場所で撮り直すか、名刺を見ながら手で入力してください。";
+    case "image_rejected": return "この写真は読み取れませんでした。明るい場所で名刺全体を撮り直すか、手で入力してください。";
+    default: return "読み取り中にエラーが起きました。撮り直すか、手で入力してください。";
   }
 }
 
