@@ -85,11 +85,12 @@ drop trigger if exists visits_updated_at on public.visits;
 create trigger visits_updated_at before update on public.visits for each row execute function public.set_updated_at();
 
 -- ───────────── アクセス権（RLS） ─────────────
--- 新規登録を無効にし、招待した社員だけがログインできる前提で、
--- 「ログイン済みの社員は全員、全データを見て編集できる」設定にしています。
--- ログインしていない人（anon）は何も読めません。
+-- ログインなしで使う設定です。公開キー（anon / publishable key）を使う人は誰でも、
+-- 全データを見て編集・削除できます。公開キーは公開ページから誰でも取得できるため、
+-- 実質「URLを知っている人は誰でも使える」状態です。
+-- ※ 以前ログインありの設定で実行していても、この SQL を実行し直せば上書きされます。
 
-grant select, insert, update, delete on public.companies, public.contacts, public.visits, public.profiles to authenticated;
+grant select, insert, update, delete on public.companies, public.contacts, public.visits, public.profiles to anon, authenticated;
 
 alter table public.profiles  enable row level security;
 alter table public.companies enable row level security;
@@ -101,22 +102,22 @@ declare t text;
 begin
   foreach t in array array['companies', 'contacts', 'visits'] loop
     execute format('drop policy if exists "社員は閲覧できる" on public.%I', t);
-    execute format('create policy "社員は閲覧できる" on public.%I for select to authenticated using (true)', t);
+    execute format('create policy "社員は閲覧できる" on public.%I for select to anon, authenticated using (true)', t);
     execute format('drop policy if exists "社員は追加できる" on public.%I', t);
-    execute format('create policy "社員は追加できる" on public.%I for insert to authenticated with check (true)', t);
+    execute format('create policy "社員は追加できる" on public.%I for insert to anon, authenticated with check (true)', t);
     execute format('drop policy if exists "社員は編集できる" on public.%I', t);
-    execute format('create policy "社員は編集できる" on public.%I for update to authenticated using (true) with check (true)', t);
+    execute format('create policy "社員は編集できる" on public.%I for update to anon, authenticated using (true) with check (true)', t);
     execute format('drop policy if exists "社員は削除できる" on public.%I', t);
-    execute format('create policy "社員は削除できる" on public.%I for delete to authenticated using (true)', t);
+    execute format('create policy "社員は削除できる" on public.%I for delete to anon, authenticated using (true)', t);
   end loop;
 end $$;
 
 drop policy if exists "社員は表示名を閲覧できる" on public.profiles;
-create policy "社員は表示名を閲覧できる" on public.profiles for select to authenticated using (true);
+create policy "社員は表示名を閲覧できる" on public.profiles for select to anon, authenticated using (true);
 drop policy if exists "自分の表示名を登録できる" on public.profiles;
-create policy "自分の表示名を登録できる" on public.profiles for insert to authenticated with check (id = auth.uid());
+create policy "自分の表示名を登録できる" on public.profiles for insert to anon, authenticated with check (id = auth.uid());
 drop policy if exists "自分の表示名を変更できる" on public.profiles;
-create policy "自分の表示名を変更できる" on public.profiles for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
+create policy "自分の表示名を変更できる" on public.profiles for update to anon, authenticated using (id = auth.uid()) with check (id = auth.uid());
 
 -- ───────────── リアルタイム更新 ─────────────
 -- 他の社員が登録・編集した内容が、開いている画面にすぐ反映されるようにする
@@ -140,10 +141,10 @@ values ('cards', 'cards', false, 10485760, array['image/jpeg', 'image/png', 'ima
 on conflict (id) do nothing;
 
 drop policy if exists "社員は名刺画像を見られる" on storage.objects;
-create policy "社員は名刺画像を見られる" on storage.objects for select to authenticated using (bucket_id = 'cards');
+create policy "社員は名刺画像を見られる" on storage.objects for select to anon, authenticated using (bucket_id = 'cards');
 drop policy if exists "社員は名刺画像を保存できる" on storage.objects;
-create policy "社員は名刺画像を保存できる" on storage.objects for insert to authenticated with check (bucket_id = 'cards');
+create policy "社員は名刺画像を保存できる" on storage.objects for insert to anon, authenticated with check (bucket_id = 'cards');
 drop policy if exists "社員は名刺画像を差し替えできる" on storage.objects;
-create policy "社員は名刺画像を差し替えできる" on storage.objects for update to authenticated using (bucket_id = 'cards') with check (bucket_id = 'cards');
+create policy "社員は名刺画像を差し替えできる" on storage.objects for update to anon, authenticated using (bucket_id = 'cards') with check (bucket_id = 'cards');
 drop policy if exists "社員は名刺画像を削除できる" on storage.objects;
-create policy "社員は名刺画像を削除できる" on storage.objects for delete to authenticated using (bucket_id = 'cards');
+create policy "社員は名刺画像を削除できる" on storage.objects for delete to anon, authenticated using (bucket_id = 'cards');

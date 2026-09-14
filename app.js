@@ -435,12 +435,12 @@ function bind() {
   $("#contactDelete").onclick = deleteContact;
 }
 
-/* ── 起動（ログイン処理と Store.init() の呼び出しは auth.js） ── */
+/* ── 起動（接続先の確認・記入者名の登録と Store.init() の呼び出しは start.js） ── */
 Store.onChange = render;
 Store.onError = (e) => {
   const n = $("#modeNote"); n.hidden = false;
   n.textContent = /JWT|token/i.test(String(e?.message || ""))
-    ? "ログインの有効期限が切れました。ログアウトして、もう一度ログインしてください。"
+    ? "Supabase に接続できませんでした。config.js の公開キーが正しいか確認してください。"
     : "最新のデータを読み込めませんでした。通信状態を確認して、ページを開き直してください。";
 };
 bind();

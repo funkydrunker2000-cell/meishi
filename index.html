@@ -218,7 +218,7 @@ dialog form{display:grid;grid-template-rows:auto 1fr auto;max-height:calc(100vh 
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
-/* ── ログイン ── */
+/* ── 初期設定の案内 ── */
 body{margin:0}
 img{max-width:100%}
 body.locked .bar,body.locked .wrap,body.locked .fab{visibility:hidden}
@@ -241,7 +241,6 @@ body.locked .bar,body.locked .wrap,body.locked .fab{visibility:hidden}
   <div class="bar-in">
     <div class="brand"><b>営業名刺帳</b><small>訪問先・名刺・営業履歴</small></div>
     <button type="button" class="me" id="meBtn">記入者名を設定</button>
-    <button type="button" class="btn ghost small" id="signOutBtn">ログアウト</button>
     <button type="button" class="btn hide-sm" id="addCompanyBtn">訪問先を追加</button>
     <button type="button" class="btn primary hide-sm" id="scanBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
@@ -367,40 +366,11 @@ body.locked .bar,body.locked .wrap,body.locked .fab{visibility:hidden}
 
 <div class="toast" id="toast" role="status" hidden></div>
 
-<!-- ログイン -->
-<section class="auth" id="authScreen" aria-label="ログイン">
+<!-- 接続先が未設定のときの案内 -->
+<section class="auth" id="authScreen" aria-label="初期設定の案内" hidden>
   <div class="auth-box">
     <div class="auth-brand"><b>営業名刺帳</b><small>社内専用</small></div>
-
-    <form class="auth-form" id="loginForm" hidden>
-      <h1>ログイン</h1>
-      <label class="field"><span>メールアドレス</span><input id="loginEmail" type="email" autocomplete="username" required></label>
-      <label class="field"><span>パスワード</span><input id="loginPassword" type="password" autocomplete="current-password" required></label>
-      <div class="status" id="loginStatus" hidden></div>
-      <button class="btn primary" type="submit">ログイン</button>
-      <button class="btn ghost small" type="button" id="forgotBtn">パスワードを忘れた場合</button>
-      <p>アカウントは管理者からの招待制です。招待メールが届いていない場合は、管理者に連絡してください。</p>
-    </form>
-
-    <form class="auth-form" id="resetForm" hidden>
-      <h1>パスワードの再設定</h1>
-      <p>登録済みのメールアドレスに、新しいパスワードを設定するためのリンクを送ります。</p>
-      <label class="field"><span>メールアドレス</span><input id="resetEmail" type="email" autocomplete="username" required></label>
-      <div class="status" id="resetStatus" hidden></div>
-      <button class="btn primary" type="submit">リンクを送る</button>
-      <button class="btn ghost small" type="button" id="backToLogin">ログイン画面に戻る</button>
-    </form>
-
-    <form class="auth-form" id="passwordForm" hidden>
-      <h1 id="passwordTitle">パスワードを設定</h1>
-      <p>次回からこのパスワードでログインします。8文字以上にしてください。</p>
-      <label class="field"><span>パスワード</span><input id="newPassword" type="password" autocomplete="new-password" minlength="8" required></label>
-      <label class="field"><span>パスワード（確認）</span><input id="newPassword2" type="password" autocomplete="new-password" minlength="8" required></label>
-      <div class="status" id="pwStatus" hidden></div>
-      <button class="btn primary" type="submit">設定してはじめる</button>
-    </form>
-
-    <div class="auth-form" id="setupMsg" hidden>
+    <div class="auth-form" id="setupMsg">
       <h1>接続先がまだ設定されていません</h1>
       <p><code>config.js</code> に Supabase のプロジェクトURLと公開キーを入れてください。手順は <code>README.md</code> にあります。</p>
     </div>
@@ -411,6 +381,6 @@ body.locked .bar,body.locked .wrap,body.locked .fab{visibility:hidden}
 <script src="config.js"></script>
 <script src="core.js"></script>
 <script src="app.js"></script>
-<script src="auth.js"></script>
+<script src="start.js"></script>
 </body>
 </html>

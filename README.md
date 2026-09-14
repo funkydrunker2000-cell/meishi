@@ -8,13 +8,15 @@
 - 状況を「受注」にすると、受注後の手続き（広告管理システム①→稟議→ヒアリングシート）のチェックと、ヒアリングシート用のまとめ文を表示
 - 他の社員が登録した内容は、開いている画面にすぐ反映
 
+> **注意：ログインなしの運用です。** 公開URLと公開キーはインターネット上の誰でも見られるため、URLを知った社外の人も、名刺（お客様の氏名・連絡先）や営業履歴を見たり、書き換え・削除したりできます。名刺の情報は個人情報にあたるため、社内の個人情報の取り扱いルールに照らして問題がないか確認してください。検索エンジンには載らない設定（noindex）にしています。
+
 ## しくみ
 
 ```
 スマホ・PCのブラウザ
    │  画面（HTML/CSS/JS）…… GitHub Pages で公開
    │
-   ├─ ログイン・データ・名刺画像 …… Supabase（Auth / Database / Storage / Realtime）
+   ├─ データ・名刺画像 …… Supabase（Database / Storage / Realtime）
    │
    └─ 名刺の読み取り …… Supabase Edge Function「read-card」 → Claude API
                          （Anthropic の API キーは Supabase 側だけに保存）
@@ -22,11 +24,11 @@
 
 | ファイル | 役割 |
 |---|---|
-| `index.html` | 画面とデザイン、ログイン画面 |
+| `index.html` | 画面とデザイン |
 | `config.js` | Supabase の接続先（URL と公開キー） |
 | `core.js` | データの読み書き・リアルタイム反映・名刺画像・読み取りの呼び出し |
 | `app.js` | 一覧・詳細・各入力フォーム |
-| `auth.js` | ログイン・招待・パスワード再設定 |
+| `start.js` | 起動処理（接続先の確認、記入者名の登録） |
 | `supabase/schema.sql` | テーブル・アクセス権・画像保存場所の初期設定 |
 | `supabase/functions/read-card/index.ts` | 名刺読み取り用のサーバー関数 |
 
@@ -47,20 +49,15 @@
    - 左メニュー **Table Editor** に `companies`（訪問先）・`contacts`（名刺）・`visits`（営業履歴）・`profiles`（記入者名）ができています
    - **Storage** に `cards` バケット（名刺画像）ができています
 
-### 2. ログインを「招待した社員だけ」にする
+### 2. ログインの設定（不要）
 
-1. **Authentication** → **Sign In / Providers**（または **Providers**）→ **Email**
-   - **Allow new users to sign up**（新規登録を許可）を **オフ**
-   - **Email** プロバイダ自体は **オン** のまま
-2. **Authentication** → **URL Configuration**
-   - **Site URL** に GitHub Pages の URL を入れる（例：`https://あなたのユーザー名.github.io/meishi/`）
-   - **Redirect URLs** にも同じ URL を追加
-   - ※ GitHub Pages の URL は手順6で決まります。先に手順6を済ませてから戻ってきても大丈夫です
+ログインなしで使うため、Authentication の設定は不要です。
 
 ### 3. Claude API キーを Supabase に保存する
 
 1. [Claude Console](https://console.anthropic.com/) → **API Keys** → **Create Key** でキーを作る（`sk-ant-...`）
    - 請求先（Billing）の設定が必要です
+   - **Limits** で月の使用上限（Spend limit）を設定してください。ログインなしの運用では第三者に読み取り機能を使われる可能性があるため、請求額が上限で止まるようにしておきます
 2. Supabase の **Edge Functions** → **Secrets**（または **Manage secrets**）
 3. **Name** に `ANTHROPIC_API_KEY`、**Value** に作ったキーを入れて保存
 
@@ -73,9 +70,10 @@
 3. エディタの中身を消して、`supabase/functions/read-card/index.ts` の中身を全部貼り付け
 4. **Deploy function**
 
-関数の中でログイン中の社員かどうかを確認しているので、ログインしていない人や外部からは使えません。
+5. 関数の **Details**（設定）で **Verify JWT with legacy secret**（Enforce JWT verification）を **オフ** にして保存
+   - ログインなしで使うため、これをオフにしないと読み取りが動きません
 
-> 読み取りで「ログインの有効期限が切れました」と出続ける場合は、関数の **Details**（設定）で **Verify JWT with legacy secret**（Enforce JWT verification）を **オフ** にしてください。新しい形式のキーを使うプロジェクトでは、この設定がログイン中の社員の呼び出しまで断ってしまうことがあります。オフにしても、上記のとおり関数の中でログインを確認しています。
+関数は公開ページ（`https://funkydrunker2000-cell.github.io`）からの呼び出しだけを受け付けます。ただし、ブラウザ以外から呼び出し元を偽装されると防げないため、手順3の使用上限は必ず設定してください。
 
 ### 5. `config.js` に接続先を入れる
 
@@ -90,7 +88,7 @@ window.MEISHI_CONFIG = {
 
 - 入れるのは **公開してよいキー**（Publishable key / anon key）です
 - **service_role key / Secret key は絶対に入れないでください**（全データを誰でも操作できてしまいます）
-- 公開キーは GitHub に載っても問題ありません。データは手順1のアクセス権設定で、招待した社員以外は読めないよう守られています
+- 公開キーは公開ページから誰でも見られます。ログインなしの運用では、このキーを使えば誰でもデータを読み書きできます（冒頭の「注意」を参照）
 
 ### 6. GitHub Pages で公開する
 
@@ -113,22 +111,19 @@ window.MEISHI_CONFIG = {
 4. 1〜2分待つと `https://あなたのユーザー名.github.io/meishi/` で開けます
 5. この URL を手順2の **Site URL / Redirect URLs** に入れる
 
-### 7. 社員を招待する
+### 7. 社員にURLを伝える
 
-1. Supabase の **Authentication** → **Users** → **Add user** → **Send invitation**
-2. 社員のメールアドレスを入れて送信
-3. 社員は届いたメールのリンクを開く → パスワードを設定 → 記入者名を登録 → 利用開始
+公開URL（`https://funkydrunker2000-cell.github.io/meishi/`）を社員に伝えれば、すぐ使えます。最初に開いたときに記入者名を登録します（端末ごとに保存）。
 
-退職などで使えなくする場合は、**Users** で該当の人を選んで **Delete user** します（その人が書いた履歴は残ります）。
+URLは社外の人に伝わらないよう、社内のチャットなど限られた場所だけで共有してください。
 
 ### 8. 動作確認
 
-- [ ] 招待メールのリンクから、パスワード設定と記入者名の登録ができる
+- [ ] 公開URLを開くと、記入者名の登録画面が出る
 - [ ] スマホで「名刺を撮影」→ 項目が自動で入る → 登録できる
 - [ ] 登録した名刺の画像が表示される
 - [ ] 営業履歴を記入できる
 - [ ] 別の人（または別の端末）で開いている画面に、すぐ反映される
-- [ ] ログアウトすると、データが見えなくなる
 
 ---
 
@@ -152,8 +147,9 @@ window.MEISHI_CONFIG = {
 
 ### アクセス権
 
-- ログインした社員は全員、すべての訪問先・名刺・履歴を見て、編集・削除できます
-- 「自分が書いた履歴だけ編集できる」などに絞りたい場合は、`supabase/schema.sql` のアクセス権（RLS）を変更します
+- 公開ページを開ける人（＝公開キーを持つ人）は誰でも、すべての訪問先・名刺・履歴を見て、編集・削除できます
+- 社外に知られた、荒らされたと感じたら、Supabase の **Project Settings → API Keys** で公開キーを作り直し、`config.js` を差し替えてください（古いキーは使えなくなります）
+- あとからログインを付ける場合は、git の最初のコミット（`7be1fe7`）に招待制ログインの実装が残っています
 
 ### バックアップ
 

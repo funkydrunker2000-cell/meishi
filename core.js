@@ -1,4 +1,4 @@
-/* 営業名刺帳 — 共通処理（Supabase：ログイン・データ保存・名刺画像・読み取り） */
+/* 営業名刺帳 — 共通処理（Supabase：データ保存・リアルタイム反映・名刺画像・読み取り） */
 "use strict";
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -21,12 +21,11 @@ const prefs = {
   set(k, v) { try { localStorage.setItem("meishi." + k, v); } catch {} },
 };
 
-/* 招待メール・パスワード再設定メールのリンクから来たかを、Supabase が URL を読み取る前に控えておく */
-const AUTH_LINK_TYPE = new URLSearchParams(location.hash.replace(/^#/, "")).get("type") || "";
-
 const CFG = window.MEISHI_CONFIG || {};
 const CONFIGURED = !!(CFG.supabaseUrl && CFG.supabaseKey && !/YOUR-/.test(CFG.supabaseUrl + CFG.supabaseKey));
-const sb = CONFIGURED && window.supabase ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey) : null;
+const sb = CONFIGURED && window.supabase
+  ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
+  : null;
 
 /* 画面側の項目名（camelCase）と、テーブルの列名（snake_case）の対応 */
 const COLUMNS = {
@@ -41,7 +40,7 @@ function toRow(col, obj) {
   const row = {};
   for (const [k, v] of Object.entries(obj)) {
     const s = toSnake(k);
-    if (!COLUMNS[col].includes(s)) continue; // created_by などはデータベース側で自動設定
+    if (!COLUMNS[col].includes(s)) continue; // created_at などはデータベース側で自動設定
     row[s] = DATE_COLS.has(s) && !v ? null : v;
   }
   return row;
@@ -54,71 +53,27 @@ function fromRow(row) {
 
 const COLS = ["companies", "contacts", "visits"];
 const Store = {
-  mode: "loading", // "setup"（接続先が未設定）| "signedOut" | "needPassword" | "signedIn"
+  mode: "loading", // "setup"（接続先が未設定）| "ready"
   canReadImages: !!sb,
   assets: !!sb,
-  user: null,
-  profile: { displayName: "" },
+  profile: { displayName: prefs.get("me") }, // 記入者名はこの端末に保存
   data: { companies: [], contacts: [], visits: [] },
-  needPassword: AUTH_LINK_TYPE === "invite" || AUTH_LINK_TYPE === "recovery",
   channel: null,
-  onChange: () => {}, onError: () => {}, onAuth: () => {},
+  onChange: () => {}, onError: () => {}, onReady: () => {},
 
   async init() {
-    if (!sb) { this.mode = "setup"; this.onAuth("setup"); return; }
-    sb.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY") this.needPassword = true;
-      // コールバック内で Supabase の処理を待つと固まることがあるため、次の順番で処理する
-      setTimeout(() => this.handleSession(session), 0);
-    });
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && this.mode === "signedIn") this.loadAll();
-    });
-  },
-
-  async handleSession(session) {
-    const uid = session?.user?.id || null;
-    if (!uid) {
-      this.stop();
-      this.mode = "signedOut"; this.onAuth("signedOut");
-      return;
-    }
-    if (this.needPassword) { this.user = session.user; this.mode = "needPassword"; this.onAuth("needPassword"); return; }
-    if (this.mode === "signedIn" && this.user?.id === uid) return;
-    this.user = session.user;
-    this.mode = "signedIn";
-    await this.loadProfile();
-    this.onAuth("signedIn");
+    if (!sb) { this.mode = "setup"; this.onReady("setup"); return; }
+    this.mode = "ready";
+    this.onReady("ready");
     await this.loadAll();
     this.subscribe();
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") this.loadAll();
+    });
   },
 
-  /* ── ログイン ── */
-  async signIn(email, password) {
-    const { error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-  },
-  async sendReset(email) {
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
-    if (error) throw error;
-  },
-  async setPassword(password) {
-    const { data, error } = await sb.auth.updateUser({ password });
-    if (error) throw error;
-    this.needPassword = false;
-    history.replaceState(null, "", location.pathname + location.search);
-    const { data: s } = await sb.auth.getSession();
-    await this.handleSession(s.session || { user: data.user });
-  },
-  async signOut() { await sb.auth.signOut(); },
-
-  async loadProfile() {
-    const { data } = await sb.from("profiles").select("display_name").eq("id", this.user.id).maybeSingle();
-    this.profile = { displayName: data?.display_name || "" };
-  },
   async saveDisplayName(name) {
-    const { error } = await sb.from("profiles").upsert({ id: this.user.id, display_name: name });
-    if (error) throw error;
+    prefs.set("me", name);
     this.profile = { displayName: name };
   },
 
@@ -152,12 +107,6 @@ const Store = {
       // 通信が切れて再接続したときは、その間の変更を取りこぼさないよう読み直す
       if (status === "SUBSCRIBED") { if (!first) this.loadAll(); first = false; }
     });
-  },
-  stop() {
-    if (this.channel) { sb.removeChannel(this.channel); this.channel = null; }
-    this.user = null; this.profile = { displayName: "" };
-    this.data = { companies: [], contacts: [], visits: [] };
-    this.photoCache.clear();
   },
   upsertLocal(col, row) {
     const item = fromRow(row);
@@ -229,8 +178,8 @@ const Store = {
 function dbErrorText(e) {
   const code = e?.code || "";
   const msg = String(e?.message || "");
-  if (code === "42501") return "保存する権限がありません。ログインし直してから、もう一度保存してください。";
-  if (code === "PGRST301" || /JWT|token/i.test(msg)) return "ログインの有効期限が切れました。ログインし直してください。";
+  if (code === "42501") return "保存が拒否されました。Supabase に最新の schema.sql が実行されているか、管理者に確認してください。";
+  if (code === "PGRST301" || /JWT|apikey|API key/i.test(msg)) return "Supabase に接続できませんでした。config.js の公開キーが正しいか確認してください。";
   if (code === "23503") return "関連する訪問先が見つかりません。画面を読み込み直してから、もう一度保存してください。";
   if (code.startsWith("23")) return "入力内容に不足があります。必須項目を確認してください。";
   if (/Failed to fetch|NetworkError|network/i.test(msg)) return "通信できませんでした。電波の良い場所で、もう一度保存してください。";
@@ -271,8 +220,8 @@ async function readCard(blob, signal) {
   if (signal?.aborted) throw { code: "cancelled" };
   if (error) {
     let code = "upstream_error";
-    try { const body = await error.context.json(); code = body.error || code; }
-    catch { if (error.context?.status === 401) code = "unauthorized"; }
+    try { const body = await error.context.json(); code = body.error || (error.context.status === 401 ? "jwt_rejected" : code); }
+    catch { if (error.context?.status === 401) code = "jwt_rejected"; }
     throw { code };
   }
   const res = {};
@@ -284,7 +233,8 @@ function sampleErrorText(e) {
   switch (e && e.code) {
     case "cancelled": return "";
     case "not_configured": return "読み取り機能の設定（APIキー）がまだ済んでいません。管理者に連絡し、今回は名刺を見ながら手で入力してください。";
-    case "unauthorized": return "ログインの有効期限が切れました。ログインし直してから撮り直してください。";
+    case "jwt_rejected": return "読み取り機能に接続できませんでした。管理者に、関数の「Verify JWT」がオフになっているか確認してもらってください。今回は手で入力してください。";
+    case "forbidden_origin": return "このページからは読み取り機能を使えない設定になっています。管理者に連絡し、今回は手で入力してください。";
     case "image_rejected": return "この写真は読み取れませんでした。明るい場所で名刺全体を撮り直してください。";
     case "rate_limited": return "読み取りが混み合っています。1分ほど待って撮り直すか、手で入力してください。";
     case "refused": case "invalid_output": return "文字をうまく読み取れませんでした。撮り直すか、手で入力してください。";

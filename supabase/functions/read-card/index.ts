@@ -2,13 +2,18 @@
 //
 // ブラウザから名刺画像（base64）を受け取り、Claude API で文字を読み取って JSON で返します。
 // - Anthropic の API キーは Supabase の Secrets「ANTHROPIC_API_KEY」に保存し、ブラウザには出しません。
-// - 公開キーだけでは呼べないよう、ログイン中の社員かどうかをこの関数の中で確認します。
+// - 名刺帳の公開ページ以外のサイトから呼ばれないよう、呼び出し元（Origin）を確認します。
+//   ブラウザ以外からの偽装は防げない簡易的な対策なので、Claude Console で使用上限も設定してください。
+// - ログインなしで使うため、この関数の「Verify JWT」はオフで運用します。
 
 import Anthropic from "npm:@anthropic-ai/sdk@0.125.0";
-import { createClient } from "npm:@supabase/supabase-js@2.116.0";
+
+// 名刺帳を公開しているサイト（GitHub Pages）。変える場合は Secrets に ALLOWED_ORIGIN を登録する
+const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") ?? "https://funkydrunker2000-cell.github.io";
 
 const CORS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Vary": "Origin",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -51,11 +56,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
-  // ログイン中の社員かを確認する（公開キーだけの呼び出しは断る）
-  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData?.user) return json({ error: "unauthorized" }, 401);
+  // 公開ページからの呼び出しだけ受け付ける
+  if (req.headers.get("Origin") !== ALLOWED_ORIGIN) return json({ error: "forbidden_origin" }, 403);
 
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) return json({ error: "not_configured" }, 500);
