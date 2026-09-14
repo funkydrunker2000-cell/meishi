@@ -5,6 +5,6 @@
  * ログインなしの運用なので、このキーを使えば誰でもデータを読み書きできます（README の「注意」を参照）。
  */
 window.MEISHI_CONFIG = {
-  supabaseUrl: "https://YOUR-PROJECT-REF.supabase.co",
-  supabaseKey: "YOUR-ANON-OR-PUBLISHABLE-KEY",
+  supabaseUrl: "https://fxiznjkbpkodtgnhomfv.supabase.co",
+  supabaseKey: "sb_publishable_Lt974MUV8HuEW-n84GBQ8Q_7PQq9G96",
 };
