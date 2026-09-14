@@ -1,0 +1,7 @@
+.env
+.env.*
+supabase/.temp/
+supabase/.branches/
+Thumbs.db
+desktop.ini
+.DS_Store

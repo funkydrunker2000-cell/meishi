@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<title>営業名刺帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@600;700&display=swap">
+<style>
+:root{
+  --ground:#E9EDEC; --surface:#FFFFFF; --surface-2:#F4F6F5; --ink:#15222A; --ink-2:#4B5A63; --ink-3:#7A878E;
+  --line:#D3DAD8; --accent:#244C84; --accent-soft:#E3EAF4; --accent-ink:#FFFFFF;
+  --shu:#B33D2C; --shu-soft:#F6E3DF; --kin:#9A6410; --kin-soft:#F4EAD6; --nezumi:#66737B; --nezumi-soft:#E6EAEC;
+  --ok:#2B7350; --ok-soft:#DDEFE5; --paper:#FFFFFF; --paper-ink:#15222A; --paper-line:#E2E6E5;
+  --shadow:0 1px 2px rgba(21,34,42,.08),0 6px 18px rgba(21,34,42,.07);
+  --f-body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
+  --f-name:"Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho",serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Consolas",monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0E1418; --surface:#162027; --surface-2:#1C2830; --ink:#E2E8EA; --ink-2:#A1AEB5; --ink-3:#74828A;
+  --line:#2A3740; --accent:#86AAE0; --accent-soft:#1F2F45; --accent-ink:#0E1418;
+  --shu:#E47A68; --shu-soft:#3A221E; --kin:#DDA64C; --kin-soft:#33291A; --nezumi:#9AA7AE; --nezumi-soft:#253038;
+  --ok:#67BD92; --ok-soft:#1B3328; --paper:#E8ECEA; --paper-ink:#15222A; --paper-line:#CDD4D2;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.35); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --ground:#0E1418; --surface:#162027; --surface-2:#1C2830; --ink:#E2E8EA; --ink-2:#A1AEB5; --ink-3:#74828A;
+  --line:#2A3740; --accent:#86AAE0; --accent-soft:#1F2F45; --accent-ink:#0E1418;
+  --shu:#E47A68; --shu-soft:#3A221E; --kin:#DDA64C; --kin-soft:#33291A; --nezumi:#9AA7AE; --nezumi-soft:#253038;
+  --ok:#67BD92; --ok-soft:#1B3328; --paper:#E8ECEA; --paper-ink:#15222A; --paper-line:#CDD4D2;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.35); color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.65;min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+
+/* ── header ── */
+.bar{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line);padding-inline:20px}
+.bar-in{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:14px;min-height:60px;flex-wrap:wrap;padding-block:8px}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.brand b{font-family:var(--f-name);font-size:20px;letter-spacing:.08em;font-weight:700}
+.brand small{color:var(--ink-3);font-size:11px;letter-spacing:.12em}
+.me{border:1px dashed var(--line);background:none;border-radius:999px;padding:4px 12px;font-size:12px;color:var(--ink-2);cursor:pointer}
+.me:hover{border-color:var(--accent);color:var(--accent)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 14px;cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--ink-3)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{border-color:transparent;background:none;color:var(--ink-2)}
+.btn.ghost:hover{color:var(--ink);background:var(--surface-2)}
+.btn.danger{color:var(--shu)}
+.btn.small{padding:4px 10px;font-size:12px}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn svg{width:16px;height:16px;flex:none}
+
+.note{max-width:1280px;margin:12px auto 0;background:var(--kin-soft);color:var(--ink);border-radius:8px;padding:8px 14px;font-size:13px}
+
+/* ── shell ── */
+.wrap{padding-inline:20px;padding-block:18px 96px}
+.shell{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:20px;align-items:start}
+.pane{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.list-pane{position:sticky;top:78px;max-height:calc(100vh - 96px);display:flex;flex-direction:column;overflow:hidden}
+.list-head{padding:14px 14px 10px;display:grid;gap:10px;border-bottom:1px solid var(--line)}
+.search{width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:8px 12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:none;border-radius:999px;padding:2px 10px;font-size:12px;cursor:pointer;color:var(--ink-2);display:inline-flex;gap:6px;align-items:center}
+.chip .n{font-family:var(--f-mono);font-size:11px;color:var(--ink-3)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.chip[aria-pressed="true"] .n{color:var(--surface)}
+.clist{list-style:none;margin:0;padding:6px;overflow-y:auto}
+.citem{width:100%;text-align:left;border:0;background:none;border-radius:8px;padding:10px 12px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 10px}
+.citem:hover{background:var(--surface-2)}
+.citem[aria-current="true"]{background:var(--accent-soft)}
+.citem .nm{font-weight:700;overflow-wrap:anywhere}
+.citem .sub{grid-column:1/-1;color:var(--ink-3);font-size:12px;display:flex;flex-wrap:wrap;gap:4px 12px}
+.citem .side{display:flex;gap:6px;align-items:center}
+.empty-list{padding:28px 16px;color:var(--ink-3);text-align:center;font-size:13px}
+
+/* ── status marks ── */
+.mark{display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:6px;font-weight:700;font-size:12px;font-family:var(--f-mono);padding-inline:6px}
+.mark.A{background:var(--shu-soft);color:var(--shu)} .mark.B{background:var(--kin-soft);color:var(--kin)} .mark.C{background:var(--nezumi-soft);color:var(--nezumi)}
+.pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:0 8px;font-size:11px;line-height:20px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.pill.late{background:var(--shu-soft);color:var(--shu);font-weight:700}
+.pill.soon{background:var(--accent-soft);color:var(--accent)}
+.pill.won{background:var(--ok-soft);color:var(--ok);font-weight:700}
+.pill.lost{background:var(--nezumi-soft);color:var(--nezumi)}
+
+/* ── detail ── */
+.detail{padding:24px 28px 32px;min-height:480px;display:grid;gap:28px;align-content:start}
+.back{display:none}
+.d-head{display:grid;gap:10px}
+.d-title{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.d-title h2{font-family:var(--f-name);font-size:28px;line-height:1.3;margin:0;letter-spacing:.03em;text-wrap:balance;overflow-wrap:anywhere}
+.d-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.stage{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:5px 8px}
+.meta{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 24px;margin:0}
+.meta div{display:flex;gap:10px;min-width:0}
+.meta dt{color:var(--ink-3);font-size:12px;flex:none;width:3.5em;padding-top:1px}
+.meta dd{margin:0;overflow-wrap:anywhere}
+.meta a{color:var(--accent)}
+.next{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;border-radius:10px;background:var(--surface-2);padding:12px 16px}
+.next.late{background:var(--shu-soft)}
+.next .lbl{font-size:11px;letter-spacing:.14em;color:var(--ink-3);font-weight:700}
+.next .what{font-weight:700;flex:1 1 200px}
+
+.sec{display:grid;gap:12px}
+.sec-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:8px}
+.sec-h h3{margin:0;font-size:15px;letter-spacing:.06em;margin-right:auto}
+.sec-h .count{font-family:var(--f-mono);color:var(--ink-3);font-size:12px;font-weight:400;margin-left:6px}
+
+/* 名刺: 91×55mm */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.card{aspect-ratio:91/55;max-width:100%;background:var(--paper);color:var(--paper-ink);border:1px solid var(--paper-line);border-radius:4px;box-shadow:var(--shadow);cursor:pointer;padding:0;text-align:left;position:relative;overflow:hidden;transition:transform .15s ease}
+.card:hover{transform:translateY(-2px)}
+.card img{width:100%;height:100%;object-fit:cover;display:block}
+.card .typeset{position:absolute;inset:0;padding:10% 8%;display:grid;grid-template-rows:auto 1fr auto;gap:2px}
+.card .co{font-size:10px;letter-spacing:.04em;color:#46545C;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.card .who{align-self:center}
+.card .role{font-size:10px;color:#46545C;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.card .pname{font-family:var(--f-name);font-size:20px;letter-spacing:.12em;line-height:1.3}
+.card .kana{font-size:9px;letter-spacing:.1em;color:#6C787E}
+.card .ct{font-family:var(--f-mono);font-size:9.5px;color:#46545C;line-height:1.45;overflow:hidden}
+.card .tag{position:absolute;right:6px;bottom:6px;background:rgba(21,34,42,.72);color:#fff;font-size:10px;border-radius:4px;padding:1px 6px}
+.card-add{aspect-ratio:91/55;border:1.5px dashed var(--line);border-radius:4px;background:none;color:var(--ink-3);cursor:pointer;display:grid;place-content:center;gap:4px;justify-items:center;font-size:13px}
+.card-add:hover{border-color:var(--accent);color:var(--accent)}
+.card-add svg{width:22px;height:22px}
+
+/* 営業履歴 */
+.log{list-style:none;margin:0;padding:0;display:grid}
+.entry{display:grid;grid-template-columns:92px 1fr;gap:4px 18px;padding:14px 0;border-bottom:1px solid var(--line)}
+.entry:last-child{border-bottom:0}
+.entry .when{font-family:var(--f-mono);font-size:13px;color:var(--ink-2);padding-top:2px}
+.entry .when small{display:block;font-size:11px;color:var(--ink-3)}
+.entry .body{display:grid;gap:6px;min-width:0}
+.entry .line1{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13px}
+.entry .staff{font-weight:700}
+.entry .with{color:var(--ink-2)}
+.entry .memo{white-space:pre-wrap;overflow-wrap:anywhere;max-width:68ch}
+.entry .todo{font-size:13px;color:var(--ink-2)}
+.entry .todo b{color:var(--ink);font-weight:500}
+.entry .acts{display:flex;gap:4px;justify-self:start}
+.empty{color:var(--ink-3);font-size:13px;padding:10px 0}
+
+/* 受注フロー */
+.flow{border:1px solid var(--ok);border-radius:10px;padding:14px 16px;display:grid;gap:10px;background:var(--ok-soft)}
+.flow h3{margin:0;font-size:14px;color:var(--ok);letter-spacing:.06em}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.steps label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.steps input{margin-top:4px;accent-color:var(--ok);width:16px;height:16px}
+.steps .arrow{color:var(--ink-3);font-size:11px;padding-left:26px;line-height:1}
+.flow textarea{width:100%;min-height:160px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:10px;font-family:var(--f-mono);font-size:12px}
+
+.welcome{display:grid;place-content:center;justify-items:center;text-align:center;gap:14px;min-height:420px;color:var(--ink-2)}
+.welcome .card{width:260px;cursor:default;transform:rotate(-3deg)}
+.welcome h2{font-family:var(--f-name);color:var(--ink);font-size:22px;margin:8px 0 0}
+.welcome p{margin:0;max-width:34em}
+
+/* ── dialogs ── */
+dialog{border:0;border-radius:14px;padding:0;background:var(--surface);color:var(--ink);width:min(640px,calc(100vw - 32px));max-height:calc(100vh - 40px);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(10,18,24,.55)}
+dialog form{display:grid;grid-template-rows:auto 1fr auto;max-height:calc(100vh - 40px)}
+.dh{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.dh h2{margin:0;font-size:16px;margin-right:auto}
+.db{padding:18px 20px;overflow-y:auto;display:grid;gap:14px}
+.df{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:12px 20px;border-top:1px solid var(--line)}
+.df .left{margin-right:auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:grid;gap:4px;min-width:0}
+.field.full{grid-column:1/-1}
+.field>span{font-size:12px;color:var(--ink-2);font-weight:500}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:8px 10px}
+.field textarea{min-height:120px;resize:vertical}
+.field input.filled{background:var(--accent-soft);border-color:var(--accent)}
+.radios{display:flex;gap:8px;flex-wrap:wrap}
+.radios label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer}
+.radios label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.checks{display:flex;flex-wrap:wrap;gap:6px 14px}
+.checks label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.shot{display:grid;grid-template-columns:200px 1fr;gap:16px;align-items:start}
+.shot .frame{aspect-ratio:91/55;max-width:100%;border-radius:4px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden;display:grid;place-items:center;color:var(--ink-3);font-size:12px}
+.shot .frame img{width:100%;height:100%;object-fit:contain}
+.status{font-size:13px;border-radius:8px;padding:8px 12px;background:var(--surface-2)}
+.status.busy{background:var(--accent-soft);color:var(--accent)}
+.status.warn{background:var(--kin-soft)}
+.status.err{background:var(--shu-soft);color:var(--shu)}
+.busy::before{content:"";display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;margin-right:8px;vertical-align:-1px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bigcard{max-width:100%;border-radius:6px;border:1px solid var(--line);display:block;margin:0 auto;max-height:340px}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:8px 18px;border-radius:999px;font-size:13px;z-index:50;box-shadow:var(--shadow)}
+.fab{display:none}
+
+@media (max-width:899px){
+  .shell{grid-template-columns:1fr}
+  .list-pane{position:static;max-height:none}
+  body.has-detail .list-pane{display:none}
+  body:not(.has-detail) .detail-pane{display:none}
+  .back{display:inline-flex}
+  .detail{padding:18px 16px 28px}
+  .bar .btn.hide-sm{display:none}
+  .fab{display:inline-flex;position:fixed;right:16px;bottom:18px;z-index:6;border-radius:999px;padding:12px 20px;box-shadow:var(--shadow)}
+}
+@media (max-width:560px){
+  .bar{padding-inline:16px} .wrap{padding-inline:16px}
+  .grid2{grid-template-columns:1fr}
+  .shot{grid-template-columns:1fr}
+  .entry{grid-template-columns:1fr}
+  .d-title h2{font-size:23px}
+  .brand small{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── ログイン ── */
+body{margin:0}
+img{max-width:100%}
+body.locked .bar,body.locked .wrap,body.locked .fab{visibility:hidden}
+.auth{position:fixed;inset:0;z-index:40;background:var(--ground);display:grid;place-items:center;padding-inline:16px;padding-block:24px;overflow-y:auto}
+.auth-box{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 24px;display:grid;gap:20px;box-shadow:var(--shadow)}
+.auth-brand{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--line);padding-bottom:14px}
+.auth-brand b{font-family:var(--f-name);font-size:22px;letter-spacing:.08em}
+.auth-brand small{color:var(--ink-3);font-size:11px;letter-spacing:.12em}
+.auth-form{display:grid;gap:12px}
+.auth-form h1{margin:0;font-size:17px;letter-spacing:.04em}
+.auth-form p{margin:0;color:var(--ink-2);font-size:13px}
+.auth-form .btn.primary{justify-content:center;padding-block:10px}
+.auth-form .btn.ghost{justify-self:center}
+.auth-form code{font-family:var(--f-mono);font-size:12px;background:var(--surface-2);border-radius:4px;padding:1px 5px}
+</style>
+</head>
+<body class="locked">
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="brand"><b>営業名刺帳</b><small>訪問先・名刺・営業履歴</small></div>
+    <button type="button" class="me" id="meBtn">記入者名を設定</button>
+    <button type="button" class="btn ghost small" id="signOutBtn">ログアウト</button>
+    <button type="button" class="btn hide-sm" id="addCompanyBtn">訪問先を追加</button>
+    <button type="button" class="btn primary hide-sm" id="scanBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      名刺を撮影
+    </button>
+  </div>
+</header>
+<div class="wrap">
+  <div class="note" id="modeNote" hidden></div>
+  <main class="shell">
+    <aside class="pane list-pane" aria-label="訪問先一覧">
+      <div class="list-head">
+        <input class="search" id="q" type="search" placeholder="会社名・担当者名・メモで検索" autocomplete="off">
+        <div class="chips" id="chips" role="group" aria-label="絞り込み"></div>
+      </div>
+      <ul class="clist" id="clist"></ul>
+    </aside>
+    <section class="pane detail-pane" aria-live="polite"><div class="detail" id="detail"></div></section>
+  </main>
+</div>
+<button type="button" class="btn primary fab" id="fab">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+  名刺を撮影
+</button>
+<input type="file" id="cardFile" accept="image/*" capture="environment" hidden>
+
+<!-- 名刺の取り込み -->
+<dialog id="dlgScan"><form method="dialog" id="scanForm">
+  <div class="dh"><h2>名刺を登録</h2><button class="btn ghost small" value="cancel" formnovalidate>閉じる</button></div>
+  <div class="db">
+    <div class="shot">
+      <div class="frame" id="scanFrame">写真なし</div>
+      <div style="display:grid;gap:8px">
+        <div class="status" id="scanStatus">名刺の写真を選ぶと、会社名・氏名などを自動で読み取ります。</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn small" id="scanRetake">写真を選び直す</button>
+        </div>
+      </div>
+    </div>
+    <div class="grid2">
+      <label class="field full"><span>会社名 *</span><input id="s_company" required></label>
+      <label class="field"><span>部署</span><input id="s_department"></label>
+      <label class="field"><span>役職</span><input id="s_title"></label>
+      <label class="field"><span>氏名 *</span><input id="s_name" required></label>
+      <label class="field"><span>ふりがな</span><input id="s_kana"></label>
+      <label class="field"><span>電話</span><input id="s_phone" inputmode="tel"></label>
+      <label class="field"><span>携帯</span><input id="s_mobile" inputmode="tel"></label>
+      <label class="field"><span>メール</span><input id="s_email" type="email"></label>
+      <label class="field"><span>FAX</span><input id="s_fax" inputmode="tel"></label>
+      <label class="field full"><span>住所</span><input id="s_address"></label>
+      <label class="field full"><span>Webサイト</span><input id="s_url"></label>
+      <label class="field full"><span>登録先の訪問先</span><select id="s_target"></select></label>
+      <label class="checks full"><label><input type="checkbox" id="s_thenVisit" checked> 登録後、続けて営業履歴を記入する</label></label>
+    </div>
+  </div>
+  <div class="df"><button class="btn ghost" value="cancel" formnovalidate>キャンセル</button><button class="btn primary" id="scanSave" value="save">登録する</button></div>
+</form></dialog>
+
+<!-- 営業履歴 -->
+<dialog id="dlgVisit"><form method="dialog" id="visitForm">
+  <div class="dh"><h2 id="visitTitle">営業履歴を記入</h2><button class="btn ghost small" value="cancel" formnovalidate>閉じる</button></div>
+  <div class="db">
+    <div class="grid2">
+      <label class="field"><span>日付 *</span><input id="v_date" type="date" required></label>
+      <label class="field"><span>方法</span><select id="v_method"><option>訪問</option><option>電話</option><option>オンライン</option><option>メール</option><option>来社</option></select></label>
+      <label class="field"><span>担当者（記入者） *</span><input id="v_staff" required></label>
+      <label class="field"><span>面談相手（名刺にない人）</span><input id="v_otherContact" placeholder="例：総務課 山田様"></label>
+      <div class="field full"><span>面談相手（登録済みの名刺）</span><div class="checks" id="v_contacts"></div></div>
+      <label class="field full"><span>内容メモ *</span><textarea id="v_memo" required placeholder="話した内容、先方の課題、提案したこと、競合の状況など"></textarea></label>
+      <div class="field full"><span>見込み度</span><div class="radios">
+        <label><input type="radio" name="v_prospect" value="A"> A 受注見込み高</label>
+        <label><input type="radio" name="v_prospect" value="B"> B 可能性あり</label>
+        <label><input type="radio" name="v_prospect" value="C"> C 低い・情報収集</label>
+        <label><input type="radio" name="v_prospect" value=""> 未設定</label>
+      </div></div>
+      <label class="field"><span>次にやること</span><input id="v_nextAction" placeholder="例：見積書を提出"></label>
+      <label class="field"><span>次回予定日</span><input id="v_nextDate" type="date"></label>
+    </div>
+  </div>
+  <div class="df"><button type="button" class="btn danger left" id="visitDelete" hidden>この履歴を削除</button><button class="btn ghost" value="cancel" formnovalidate>キャンセル</button><button class="btn primary" value="save">保存する</button></div>
+</form></dialog>
+
+<!-- 訪問先 -->
+<dialog id="dlgCompany"><form method="dialog" id="companyForm">
+  <div class="dh"><h2 id="companyTitle">訪問先を追加</h2><button class="btn ghost small" value="cancel" formnovalidate>閉じる</button></div>
+  <div class="db"><div class="grid2">
+    <label class="field full"><span>会社名 *</span><input id="c_name" required></label>
+    <label class="field"><span>業種</span><input id="c_industry" placeholder="例：製造業（建設機械）"></label>
+    <label class="field"><span>電話</span><input id="c_phone" inputmode="tel"></label>
+    <label class="field full"><span>住所</span><input id="c_address"></label>
+    <label class="field full"><span>Webサイト</span><input id="c_url"></label>
+    <label class="field full"><span>会社についてのメモ</span><textarea id="c_memo" placeholder="拠点、従業員数、取引のきっかけなど"></textarea></label>
+  </div></div>
+  <div class="df"><button type="button" class="btn danger left" id="companyDelete" hidden>訪問先を削除</button><button class="btn ghost" value="cancel" formnovalidate>キャンセル</button><button class="btn primary" value="save">保存する</button></div>
+</form></dialog>
+
+<!-- 名刺の詳細 -->
+<dialog id="dlgContact"><form method="dialog" id="contactForm">
+  <div class="dh"><h2>名刺の詳細</h2><button class="btn ghost small" value="cancel" formnovalidate>閉じる</button></div>
+  <div class="db">
+    <div id="k_photo"></div>
+    <div class="grid2">
+      <label class="field"><span>氏名 *</span><input id="k_name" required></label>
+      <label class="field"><span>ふりがな</span><input id="k_kana"></label>
+      <label class="field"><span>部署</span><input id="k_department"></label>
+      <label class="field"><span>役職</span><input id="k_title"></label>
+      <label class="field"><span>電話</span><input id="k_phone" inputmode="tel"></label>
+      <label class="field"><span>携帯</span><input id="k_mobile" inputmode="tel"></label>
+      <label class="field"><span>メール</span><input id="k_email" type="email"></label>
+      <label class="field"><span>FAX</span><input id="k_fax" inputmode="tel"></label>
+      <label class="field full"><span>所属する訪問先</span><select id="k_company"></select></label>
+    </div>
+  </div>
+  <div class="df"><button type="button" class="btn danger left" id="contactDelete">名刺を削除</button><button class="btn ghost" value="cancel" formnovalidate>キャンセル</button><button class="btn primary" value="save">保存する</button></div>
+</form></dialog>
+
+<!-- 確認・名前 -->
+<dialog id="dlgAsk"><form method="dialog">
+  <div class="dh"><h2 id="askTitle">確認</h2></div>
+  <div class="db"><p id="askText" style="margin:0"></p><label class="field" id="askField" hidden><span id="askLabel"></span><input id="askInput"></label></div>
+  <div class="df"><button class="btn ghost" value="cancel" formnovalidate>キャンセル</button><button class="btn primary" id="askOk" value="ok">OK</button></div>
+</form></dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<!-- ログイン -->
+<section class="auth" id="authScreen" aria-label="ログイン">
+  <div class="auth-box">
+    <div class="auth-brand"><b>営業名刺帳</b><small>社内専用</small></div>
+
+    <form class="auth-form" id="loginForm" hidden>
+      <h1>ログイン</h1>
+      <label class="field"><span>メールアドレス</span><input id="loginEmail" type="email" autocomplete="username" required></label>
+      <label class="field"><span>パスワード</span><input id="loginPassword" type="password" autocomplete="current-password" required></label>
+      <div class="status" id="loginStatus" hidden></div>
+      <button class="btn primary" type="submit">ログイン</button>
+      <button class="btn ghost small" type="button" id="forgotBtn">パスワードを忘れた場合</button>
+      <p>アカウントは管理者からの招待制です。招待メールが届いていない場合は、管理者に連絡してください。</p>
+    </form>
+
+    <form class="auth-form" id="resetForm" hidden>
+      <h1>パスワードの再設定</h1>
+      <p>登録済みのメールアドレスに、新しいパスワードを設定するためのリンクを送ります。</p>
+      <label class="field"><span>メールアドレス</span><input id="resetEmail" type="email" autocomplete="username" required></label>
+      <div class="status" id="resetStatus" hidden></div>
+      <button class="btn primary" type="submit">リンクを送る</button>
+      <button class="btn ghost small" type="button" id="backToLogin">ログイン画面に戻る</button>
+    </form>
+
+    <form class="auth-form" id="passwordForm" hidden>
+      <h1 id="passwordTitle">パスワードを設定</h1>
+      <p>次回からこのパスワードでログインします。8文字以上にしてください。</p>
+      <label class="field"><span>パスワード</span><input id="newPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label class="field"><span>パスワード（確認）</span><input id="newPassword2" type="password" autocomplete="new-password" minlength="8" required></label>
+      <div class="status" id="pwStatus" hidden></div>
+      <button class="btn primary" type="submit">設定してはじめる</button>
+    </form>
+
+    <div class="auth-form" id="setupMsg" hidden>
+      <h1>接続先がまだ設定されていません</h1>
+      <p><code>config.js</code> に Supabase のプロジェクトURLと公開キーを入れてください。手順は <code>README.md</code> にあります。</p>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script src="app.js"></script>
+<script src="auth.js"></script>
+</body>
+</html>
